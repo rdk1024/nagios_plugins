@@ -249,7 +249,7 @@ foreach my $disk_oid (@real_disks) {
     $status = 'WARNING' unless ( $status eq 'CRITICAL' );
     $status_string .= ', inodes warn: ' . $$result{$inode_oid} . "%.\n";
   } else {
-    $status_string .= ", inodes ok.";
+    $status_string .= ", inodes ok.\n";
   }
 
   $perfdata .= " " . $result{$path_oid} . "_(inodes)" . "="
@@ -278,7 +278,6 @@ foreach my $disk (sort {$a <=> $b} (keys(%disk_h))) {
 
 print $state . ": ";
 print $state_string || "All disks within limits";
-print "\n";
 if ($opt_f) {
   print '|' . $perf_string;
   print "\n";
