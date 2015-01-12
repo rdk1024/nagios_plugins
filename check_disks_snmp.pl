@@ -210,7 +210,7 @@ foreach my $oid (keys %$result) {
   #print "OID: $oid\n";
   if ( $oid =~ /^\Q$oid_table.3.\E/ ) {
     push @real_disks, $oid unless $$result{$oid} =~
-      /^(?:none|sunrpc|usbfs|nfsd|proc|devpts|udev|sysfs|devfs|rpc_pipefs|binfmt_misc|fusectl|beancounter|container|fairsched)$/;
+      /^(?:none|sunrpc|usbfs|nfsd|proc|devpts|udev|sysfs|devfs|rpc_pipefs|binfmt_misc|fusectl|beancounter|container|fairsched|gvfs-fuse-daemon)$/;
   }
 }
 
