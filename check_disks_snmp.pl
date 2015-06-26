@@ -238,7 +238,7 @@ foreach my $disk_oid (@real_disks) {
     $status_string .= 'diskspace ok';
   }
 
-  $perfdata .= $result{$path_oid} . "_(space)" . "=" . $result{$diskspace_oid}
+  $perfdata .= $$result{$path_oid} . "_(space)" . "=" . $$result{$diskspace_oid}
               . "%" . ";" . $diskspace_warn . ";" . $diskspace_crit
               . ";0;100";
 
@@ -252,8 +252,8 @@ foreach my $disk_oid (@real_disks) {
     $status_string .= ", inodes ok.\n";
   }
 
-  $perfdata .= " " . $result{$path_oid} . "_(inodes)" . "="
-              . $result{$inode_oid} . "%" . ";" . $inodes_warn
+  $perfdata .= " " . $$result{$path_oid} . "_(inodes)" . "="
+              . $$result{$inode_oid} . "%" . ";" . $inodes_warn
               . ";" . $inodes_crit . ";0;100";
 
   %{$disk_h{$index}} = (
