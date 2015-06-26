@@ -263,6 +263,7 @@ foreach my $disk_oid (@real_disks) {
     'dev'            => $$result{$disk_oid},
     'status'         => $status,
     'status_string'  => $status_string,
+    'perfdata'       => $perfdata,
   );
 }
 
