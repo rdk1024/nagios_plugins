@@ -30,6 +30,8 @@
 use strict;
 use warnings FATAL => 'all';
 
+use Data::Dumper;
+
 use Net::SNMP;
 use Getopt::Long;
 use vars qw($opt_P $opt_h $opt_H $opt_W $opt_C $opt_p $opt_w $opt_c $opt_t $verbose $opt_2 $opt_f);
@@ -213,6 +215,8 @@ foreach my $oid (keys %$result) {
       /^(?:none|sunrpc|usbfs|nfsd|proc|devpts|udev|sysfs|devfs|rpc_pipefs|binfmt_misc|fusectl|beancounter|container|fairsched|gvfs-fuse-daemon)$/;
   }
 }
+
+print Dumper(%$result);
 
 my %disk_h;
 
