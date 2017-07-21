@@ -43,7 +43,8 @@ my $snmp_version = 1;
 # OID table/range we're going to use here
 my $oid_table = '.1.3.6.1.4.1.2021.9.1';
 
-my %STATUSCODE = (
+use vars qw(%STATUSCODE);
+%STATUSCODE = (
     'OK'    => '0',
     'WARNING'   => '1',
     'CRITICAL'  => '2',
@@ -121,41 +122,41 @@ if ($opt_2) {$snmp_version = 2;}
 # Options checking
 
 # Hostname is required
-($opt_H) || ($opt_H = shift) || usage("Host name not specified\n");
+($opt_H) || usage("Host name not specified\n");
 my $hostname = $1 if ($opt_H =~ /^([-.A-Za-z0-9]+\$?)$/);
 ($hostname) || usage("Invalid host: $opt_H\n");
 
 # Community
-($opt_p) || ($opt_p = shift) || ($opt_p = "public");
+($opt_p) || ($opt_p = "public");
 my $community = $1 if ($opt_p =~ /(.*)/);
 
 # Diskspace warning threshold
-($opt_w) || ($opt_w = shift) || ($opt_w = 90);
+($opt_w) || ($opt_w = 90);
 my $diskspace_warn = $1 if ($opt_w =~ /^([0-9]{1,2}|100)\%?$/);
 ($diskspace_warn) || usage("Invalid diskspace warning threshold: $opt_w\n");
 
 # Diskspace critical threshold
-($opt_c) || ($opt_c = shift) || ($opt_c = 95);
+($opt_c) || ($opt_c = 95);
 my $diskspace_crit = $1 if ($opt_c =~ /^([0-9]{1,2}|100)\%?$/);
 ($diskspace_crit) || usage("Invalid diskspace critical threshold: $opt_c\n");
 
 # Inode warning threshold
-($opt_W) || ($opt_W = shift) || ($opt_W = 90);
+($opt_W) || ($opt_W = 90);
 my $inodes_warn = $1 if ($opt_W =~ /^([0-9]{1,2}|100)\%?$/);
 ($inodes_warn) || usage("Invalid inode warning threshold: $opt_W\n");
 
 # Inode critical threshold
-($opt_C) || ($opt_C = shift) || ($opt_C = 95);
+($opt_C) || ($opt_C = 95);
 my $inodes_crit = $1 if ($opt_C =~ /^([0-9]{1,2}|100)\%?$/);
 ($inodes_crit) || usage("Invalid inode critical threshold: $opt_C\n");
 
 # Snmp port
-($opt_P) || ($opt_P = shift) || ($opt_P = 161);
+($opt_P) || ($opt_P = 161);
 my $snmp_port = $1 if ($opt_P =~ /^([0-9]{1,5})$/ && $opt_P < 65535);
 ($snmp_port) || usage("Invalid snmp port: $opt_P\n");
 
 # Timeout
-($opt_t) || ($opt_t = shift) || ($opt_t = 15);
+($opt_t) || ($opt_t = 15);
 my $timeout = $1 if ($opt_t =~ /^([0-9]{1,3})$/);
 ($timeout) || usage("Invalid timeout value: $opt_t\n");
 
