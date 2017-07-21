@@ -32,7 +32,7 @@ use warnings FATAL => 'all';
 
 use Net::SNMP;
 use Getopt::Long;
-use vars qw($opt_P $opt_h $opt_H $opt_W $opt_C $opt_p $opt_w $opt_c $opt_t $verbose $opt_2 $opt_f);
+use vars qw($opt_P $opt_h $opt_H $opt_W $opt_C $opt_p $opt_w $opt_c $opt_t $verbose $opt_2 $opt_f $opt_s $opt_i);
 
 $ENV{'PATH'}='';
 $ENV{'BASH_ENV'}='';
@@ -86,6 +86,10 @@ Available options:
     use snmp v2c (default: v1)
          -f | --perfdata
     add performance output
+         -s <y|n> | --space <y|n>
+    check disk space (default: y)
+         -i <y|n> | --inodes <y|n>
+    check inodes (default: y)
 EOT
 
 }
@@ -112,6 +116,8 @@ GetOptions (
   "H=s" => \$opt_H, "hostname=s"  => \$opt_H,
   "2"   => \$opt_2, "v2c"         => \$opt_2,
   "f"   => \$opt_f, "perfdata"    => \$opt_f,
+  "s=s" => \$opt_s, "space=s"     => \$opt_s,
+  "i=s" => \$opt_i, "inodes=s"    => \$opt_i,
   );
 
 if ($opt_h) {print_help(); exit $STATUSCODE{'OK'};}
@@ -130,25 +136,41 @@ my $hostname = $1 if ($opt_H =~ /^([-.A-Za-z0-9]+\$?)$/);
 ($opt_p) || ($opt_p = "public");
 my $community = $1 if ($opt_p =~ /(.*)/);
 
-# Diskspace warning threshold
-($opt_w) || ($opt_w = 90);
-my $diskspace_warn = $1 if ($opt_w =~ /^([0-9]{1,2}|100)\%?$/);
-($diskspace_warn) || usage("Invalid diskspace warning threshold: $opt_w\n");
+# Check disk space
+($opt_s) || ($opt_s = 'y');
+my $check_space = (lc($opt_s) eq 'y');
 
-# Diskspace critical threshold
-($opt_c) || ($opt_c = 95);
-my $diskspace_crit = $1 if ($opt_c =~ /^([0-9]{1,2}|100)\%?$/);
-($diskspace_crit) || usage("Invalid diskspace critical threshold: $opt_c\n");
+my $diskspace_warn;
+my $diskspace_crit;
+if ($check_space) {
+    # Diskspace warning threshold
+    ($opt_w) || ($opt_w = 90);
+    $diskspace_warn = $1 if ($opt_w =~ /^([0-9]{1,2}|100)\%?$/);
+    ($diskspace_warn) || usage("Invalid diskspace warning threshold: $opt_w\n");
 
-# Inode warning threshold
-($opt_W) || ($opt_W = 90);
-my $inodes_warn = $1 if ($opt_W =~ /^([0-9]{1,2}|100)\%?$/);
-($inodes_warn) || usage("Invalid inode warning threshold: $opt_W\n");
+    # Diskspace critical threshold
+    ($opt_c) || ($opt_c = 95);
+    $diskspace_crit = $1 if ($opt_c =~ /^([0-9]{1,2}|100)\%?$/);
+    ($diskspace_crit) || usage("Invalid diskspace critical threshold: $opt_c\n");
+}
 
-# Inode critical threshold
-($opt_C) || ($opt_C = 95);
-my $inodes_crit = $1 if ($opt_C =~ /^([0-9]{1,2}|100)\%?$/);
-($inodes_crit) || usage("Invalid inode critical threshold: $opt_C\n");
+# Check inodes
+($opt_i) || ($opt_i = 'y');
+my $check_inodes = (lc($opt_i) eq 'y');
+
+my $inodes_warn;
+my $inodes_crit;
+if ($check_inodes) {
+    # Inode warning threshold
+    ($opt_W) || ($opt_W = 90);
+    $inodes_warn = $1 if ($opt_W =~ /^([0-9]{1,2}|100)\%?$/);
+    ($inodes_warn) || usage("Invalid inode warning threshold: $opt_W\n");
+
+    # Inode critical threshold
+    ($opt_C) || ($opt_C = 95);
+    $inodes_crit = $1 if ($opt_C =~ /^([0-9]{1,2}|100)\%?$/);
+    ($inodes_crit) || usage("Invalid inode critical threshold: $opt_C\n");
+}
 
 # Snmp port
 ($opt_P) || ($opt_P = 161);
@@ -161,9 +183,9 @@ my $timeout = $1 if ($opt_t =~ /^([0-9]{1,3})$/);
 ($timeout) || usage("Invalid timeout value: $opt_t\n");
 
 usage("Diskspace warning threshold: $opt_w greater or equal critical "
-    . "threshold: $opt_c\n")  if ($opt_w >= $opt_c);
+    . "threshold: $opt_c\n")  if ($check_space) && ($opt_w >= $opt_c);
 usage("Inode warning threshold: $opt_W greater or equal critical "
-    . "threshold: $opt_C\n")  if ($opt_W >= $opt_C);
+    . "threshold: $opt_C\n")  if ($check_inodes) && ($opt_W >= $opt_C);
 
 my $state = 'OK';
 
@@ -225,47 +247,68 @@ foreach my $disk_oid (@real_disks) {
   (my $inode_oid = $disk_oid) =~ s/^\Q$oid_table.3.\E/$oid_table.10./;
   (my $index = $disk_oid ) =~ s/^.*\.//g;
 
-  my $status = 'OK';
+  my $status = 'UNKNOWN';
   my $status_string = 'Disk: ' . $$result{$path_oid} .' ';
   my $perfdata = '';
 
-  if ($$result{$diskspace_oid} >= $diskspace_crit) {
-    $status = 'CRITICAL';
-    $status_string .= 'diskpace crit: ' . $$result{$diskspace_oid} . '%';
-  } elsif ($$result{$diskspace_oid} >= $diskspace_warn) {
-    $status = 'WARNING';
-    $status_string .= 'diskpace warn: ' . $$result{$diskspace_oid} . '%';
-  } else {
-    $status_string .= 'diskspace ok';
+  if ($check_space) {
+      if ($$result{$diskspace_oid} >= $diskspace_crit) {
+	  $status = 'CRITICAL';
+	  $status_string .= 'diskpace crit: ' . $$result{$diskspace_oid} . '%';
+      } elsif ($$result{$diskspace_oid} >= $diskspace_warn) {
+	  $status = 'WARNING';
+	  $status_string .= 'diskpace warn: ' . $$result{$diskspace_oid} . '%';
+      } else {
+	  $status = 'OK';
+	  $status_string .= 'diskspace ok';
+      }
+
+      $perfdata .= $$result{$path_oid} . "_(space)" . "=" . $$result{$diskspace_oid}
+                  . "%" . ";" . $diskspace_warn . ";" . $diskspace_crit
+                  . ";0;100";
   }
 
-  $perfdata .= $$result{$path_oid} . "_(space)" . "=" . $$result{$diskspace_oid}
-              . "%" . ";" . $diskspace_warn . ";" . $diskspace_crit
-              . ";0;100";
+  if ($check_inodes) {
+      if ($check_space) {
+	  $status_string .= ', ';
+      }
+      if ($$result{$inode_oid} >= $inodes_crit) {
+	  $status = 'CRITICAL';
+	  $status_string .= 'inodes crit: ' . $$result{$inode_oid} ."%";
+      } elsif ($$result{$inode_oid} >= $inodes_warn) {
+	  $status = 'WARNING' unless ( $status eq 'CRITICAL' );
+	  $status_string .= 'inodes warn: ' . $$result{$inode_oid} . "%";
+      } else {
+	  $status = 'OK';
+	  $status_string .= "inodes ok";
+      }
 
-  if ($$result{$inode_oid} >= $inodes_crit) {
-    $status = 'CRITICAL';
-    $status_string .= ', inodes crit: ' . $$result{$inode_oid} ."%.\n";
-  } elsif ($$result{$inode_oid} >= $inodes_warn) {
-    $status = 'WARNING' unless ( $status eq 'CRITICAL' );
-    $status_string .= ', inodes warn: ' . $$result{$inode_oid} . "%.\n";
-  } else {
-    $status_string .= ", inodes ok.\n";
+      $perfdata .= " " . $$result{$path_oid} . "_(inodes)" . "="
+                  . $$result{$inode_oid} . "%" . ";" . $inodes_warn
+                  . ";" . $inodes_crit . ";0;100";
   }
 
-  $perfdata .= " " . $$result{$path_oid} . "_(inodes)" . "="
-              . $$result{$inode_oid} . "%" . ";" . $inodes_warn
-              . ";" . $inodes_crit . ";0;100";
+  $status_string .= ".\n";
 
   %{$disk_h{$index}} = (
-    'diskspace_used' => $$result{$diskspace_oid},
-    'inodes_used'    => $$result{$inode_oid},
     'path'           => $$result{$path_oid},
     'dev'            => $$result{$disk_oid},
     'status'         => $status,
     'status_string'  => $status_string,
     'perfdata'       => $perfdata,
-  );
+      );
+
+  if ($check_space) {
+      $disk_h{$index}{'diskspace_used'} = $$result{$diskspace_oid};
+  } else {
+      $disk_h{$index}{'diskspace_used'} =  'Not checked';
+  }
+
+  if ($check_inodes) {
+      $disk_h{$index}{'inodes_used'} = $$result{$inode_oid};
+  } else {
+      $disk_h{$index}{'inodes_used'} =  'Not checked';
+  }
 }
 
 my $state_string;
